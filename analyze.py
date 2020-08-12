@@ -22,7 +22,7 @@ print(path)
 print()
 
 with open(path, "r") as source:
-    data = read.text2dataset(source.read())
+    data = read.text2dict(source.read())
 
 poses = read.extract_tcp_poses(data)
 pose_xyz, pose_rvecs = np.split(poses, 2, axis=1)

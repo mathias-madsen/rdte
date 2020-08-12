@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def text2dataset(text):
+def text2dict(text):
     """ Convert a file string to a dict of equally-long arrays. """
 
     lines = text.strip().split("\n")
