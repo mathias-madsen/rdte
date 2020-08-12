@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import read
 import approximation
 import rotations
-
+import fourier
 
 idx = 0
 
@@ -103,11 +103,11 @@ old_y = calm_forces[:, :]
 bandwidth = approximation.find_good_bandwidth(old_x, old_y)
 new_x = np.linspace(-np.pi, +np.pi, 300)
 new_y = approximation.resample(old_x, old_y, new_x, bandwidth=bandwidth)
-smooth_y = np.transpose([approximation.low_pass_filter(y) for y in new_y.T])
+smooth_y = np.transpose([fourier.low_pass_filter(y) for y in new_y.T])
 
 figure, axlist = plt.subplots(nrows=3, figsize=(8, 9))
 for i, axname in enumerate("xyz"):
-    new_y_smooth = approximation.low_pass_filter(new_y[:, i])
+    new_y_smooth = fourier.low_pass_filter(new_y[:, i])
     axlist[i].plot(old_x, old_y[:, i], ".", alpha=0.3)
     axlist[i].plot(new_x, smooth_y[:, i], "r-", lw=3, alpha=0.7)
     axlist[i].set_xlabel("Angle", fontsize=12)

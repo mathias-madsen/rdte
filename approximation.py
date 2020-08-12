@@ -1,6 +1,5 @@
 import tqdm
 import numpy as np
-from scipy.fftpack import rfft, irfft
 
 
 def resample(old_x, old_y, new_x, bandwidth=None):
@@ -81,27 +80,3 @@ def find_good_bandwidth(x, y, resolution=40, logfactor=10):
     print()
 
     return winning_val
-
-
-def low_pass_filter(y, cutoff=10):
-    """ Remove high-frequency oscillations from a time series.
-
-    Parameters:
-    -----------
-    y : array of shape (N,)
-        A timeseries of equally-spaced, real-valued floats.
-    cutoff : int >= 0
-        The index of the first oscillation frequency we choose to
-        disregard because we consider it too high-frequent. All higher
-        frequencies are disregarded too, all lower frequencies kept.
-
-    Returns:
-    yhat : array of shape (N,)
-        A smoothed version of the input timeseries from which of the
-        high-frequency components have been removed.
-    """
-
-    freqs = rfft(y)
-    freqs[cutoff:] *= 0
-
-    return irfft(freqs)

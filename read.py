@@ -1,5 +1,7 @@
 import numpy as np
 
+import rotations
+
 
 def text2dict(text):
     """ Convert a file string to a dict of equally-long arrays. """
@@ -40,3 +42,23 @@ def extract_tcp_speed(data):
     columns = [data[name] for name in names]
 
     return np.stack(columns, axis=1)
+
+
+class Recording:
+
+    def __init__(self, csvpath):
+
+        with open(csvpath, "r") as source:
+            self.data = text2dict(source.read())
+
+        self.force = extract_tcp_forces(self.data)
+        self.force_xyz, self.force_rvec = np.split(self.force, 2, axis=1)
+        self.force_rmats = rotations.rvecs2matrices(self.force_rvec)
+
+        self.pose = extract_tcp_poses(self.data)
+        self.pose_xyz, self.pose_rvec = np.split(self.pose, 2, axis=1)
+        self.pose_rmats = rotations.rvecs2matrices(self.pose_rvec)
+
+        self.speed = extract_tcp_speed(self.data)
+        self.speed_xyz, self.speed_rvec = np.split(self.speed, 2, axis=1)
+        self.speed_rmats = rotations.rvecs2matrices(self.speed_rvec)
