@@ -1,0 +1,4 @@
+data/**/*.csv
+data/**/*.mp4
+.DS_Store
+__pycache__/*.*
