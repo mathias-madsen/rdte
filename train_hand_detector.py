@@ -96,15 +96,15 @@ def plot_recording(name):
 if __name__ == "__main__":
 
     width = 30
-    snipoff = 6
+    snipoff = 5
     
-    # positive, negative = extract_data(width)
-    # posfeats = preprocess(positive[:, :, :snipoff])
-    # negfeats = preprocess(negative[:, :, :snipoff])
+    positive, negative = extract_data(width)
+    posfeats = preprocess(positive[:, :, :snipoff])
+    negfeats = preprocess(negative[:, :, :snipoff])
 
-    positive, negative = extract_forces()
-    posfeats = preprocess(positive)
-    negfeats = preprocess(negative)
+    # positive, negative = extract_forces()
+    # posfeats = preprocess(positive)
+    # negfeats = preprocess(negative)
 
     x = np.concatenate([posfeats, negfeats], axis=0)
     y = np.array(len(posfeats) * [True] + len(negfeats) * [False])
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     test_x = x[test_idx,]
     test_y = y[test_idx,]
 
-    solver = logistic.LogisticRegressionSolver(train_x, train_y, regweight=0.0)
+    solver = logistic.LogisticRegressionSolver(train_x, train_y, regweight=1.0)
     solution = solver.solve()
 
     print("Parameter estimate:")
@@ -135,22 +135,23 @@ if __name__ == "__main__":
     print()
 
     rec = Recording("data/ur10e_guiding/%s.csv" % NAMES[0])
-    # freqs = compute_windowed_fourier(rec.force_xyz, width=width)
-    # data = preprocess(freqs[:, :, :snipoff])
-    data = preprocess(rec.force_xyz)
-    probs = logistic.compute_logits(solution.x, data)
+    freqs = compute_windowed_fourier(rec.force_xyz, width=width)
+    data = preprocess(freqs[:, :, :snipoff])
+    # data = preprocess(rec.force_xyz)
+    logodds = logistic.biasdot(solution.x, data)
+    probs = logistic.sigmoid(logodds)
 
-    figure, (top, bot) = plt.subplots(figsize=(12, 8), nrows=2, sharex=True)
-    top.plot(rec.force_xyz, ".-", alpha=0.5)
-    bot.plot(probs, ".-", lw=3)
-    plt.tight_layout()
-    plt.show()
-
-    # figure, axlist = plt.subplots(figsize=(12, 8), nrows=4, sharex=True)
-    # for i, axes in enumerate(axlist[:3]):
-    #     powers = freqs[:, :, 0].T ** 2
-    #     powers /= powers.max(axis=0)
-    #     axes.imshow(powers, aspect="auto")
-    # axlist[-1].plot(probs, ".-")
+    # figure, (top, bot) = plt.subplots(figsize=(12, 8), nrows=2, sharex=True)
+    # top.plot(rec.force_xyz, ".-", alpha=0.5)
+    # bot.plot(probs, ".-", lw=3)
     # plt.tight_layout()
     # plt.show()
+
+    figure, axlist = plt.subplots(figsize=(12, 8), nrows=4, sharex=True)
+    for i, axes in enumerate(axlist[:3]):
+        powers = freqs[:, :, 0].T ** 2
+        powers /= powers.max(axis=0)
+        axes.imshow(powers, aspect="auto")
+    axlist[-1].plot(probs, ".-")
+    plt.tight_layout()
+    plt.show()

@@ -8,13 +8,31 @@ RED = np.array([1., 0, 0])
 GREEN = np.array([0, .5, 0])
 
 
-def compute_logits(theta, x):
+def sigmoid(z, maxexp=200):
+    """ Compute the inverse of `scipy.special.logit`. """
+    halfz = np.clip(z / 2, -abs(maxexp), +abs(maxexp))
+    return np.exp(halfz) / (np.exp(halfz) + np.exp(-halfz))
+
+
+def softplus(z):
+    """ Compute log(1 + exp(z)) in a numerically stable fashion. """
+    output = np.clip(z, 0, None)
+    output[z < 100] = np.log(1 + np.exp(z[z < 100]))
+    return output
+
+
+def diff_softplus(z):
+    """ Compute derivative of log(1 + exp(z)) wrt z. """
+    return sigmoid(z)
+
+
+def biasdot(theta, x):
     """ Compute linear function, with theta as packed bias + slope. """
     return theta[..., 0] + np.sum(x * theta[..., 1:], axis=-1)
 
 
-def differentiate_logits_wrt_theta(theta, x):
-    """ Compute the gradient of the logits with respect to `theta`. """
+def diff_biasdot(theta, x):
+    """ Compute the gradients of `biasdot(theta, x)` wrt `theta`. """
     shape = list(np.shape(x))
     shape[-1] += 1
     grad = np.ones(shape, dtype=x.dtype)
@@ -22,29 +40,18 @@ def differentiate_logits_wrt_theta(theta, x):
     return grad
 
 
-def sigmoid(z, maxexp=200):
-    """ Compute the inverse of `scipy.special.logit`. """
-    halfz = np.clip(z / 2, -abs(maxexp), +abs(maxexp))
-    return np.exp(halfz) / (np.exp(halfz) + np.exp(-halfz))
-
-
-def compute_probs(theta, x):
-    """ Compute sigmoid of log-odds estimates. """
-    logits = compute_logits(theta, x)
-    clipped = np.clip(logits, -300, +300)
-    return 1 / (1 + np.exp(-clipped))
-
-
 def compute_logistic_loss(theta, x, y):
     """ Compute mean of signed log-odds estimates. """
-    logits = compute_logits(theta, x)
-    logits[y] *= -1
-    return np.mean(logits, axis=0)
+    logits = biasdot(theta, x)
+    nlogp = softplus(-logits)  # conditional log-prob of y==1
+    nlogq = softplus(+logits)  # conditional log-prob of y==0
+    nlogps = np.concatenate([nlogp[y], nlogq[~y]])
+    return np.mean(nlogps, axis=0)
 
 
 def compute_accuracy(theta, x, y):
     """ Compute proportion of correctly categorized data points. """
-    logits = compute_logits(theta, x)
+    logits = biasdot(theta, x)
     yhats = logits >= 0
     return np.mean(yhats == y)
 
@@ -102,20 +109,24 @@ class LogisticRegressionSolver:
         self.num_params = 1 + self.dim
 
     def jac(self, theta):
-        dlogodds = differentiate_logits_wrt_theta(theta, self.x)
+        logodds = biasdot(theta, self.x)
+        logodds[self.y] *= -1
+        dlogodds = diff_biasdot(theta, self.x)
         dlogodds[self.y] *= -1
-        meangrad = np.mean(dlogodds, axis=0)
+        nprobs = sigmoid(logodds)
+        grads = nprobs[:, None] * dlogodds
+        meangrad = np.mean(grads, axis=0)
         reggrad = 2.0 * theta
         reggrad *= self.regweight / self.num_points
         assert meangrad.shape == reggrad.shape == (self.num_params,)
         return meangrad + reggrad
     
-    def hess(self, theta):
-        unweighted = 2.0 * np.eye(self.num_params)
-        return self.regweight / self.num_points * unweighted
+    # def hess(self, theta):
+    #     unweighted = 2.0 * np.eye(self.num_params)
+    #     return self.regweight / self.num_points * unweighted
 
-    def hessp(self, theta, vector):
-        return 2.0 * self.regweight / self.num_points * vector
+    # def hessp(self, theta, vector):
+    #     return 2.0 * self.regweight / self.num_points * vector
 
     def compute_loss(self, theta):
         logistic_loss = compute_logistic_loss(theta, self.x, self.y)
@@ -129,18 +140,21 @@ class LogisticRegressionSolver:
     def solve(self, verbose=True):
         start = time.time()
         theta = 1e-5 * np.random.normal(size=self.num_params)
+        if verbose:
+            print("\n\n\Solving logistic regression problem . . .")
         # solution = minimize(self.compute_loss, theta)
         solution = minimize(self.compute_loss,
                             theta,
                             method="newton-cg",
                             jac=self.jac,
-                            hess=self.hess,
-                            hessp=self.hessp)
-        dur = time.time() - start
+                            # hess=self.hess,
+                            # hessp=self.hessp
+                            )
+        dur = 1000.0 * (time.time() - start)
         if verbose and solution.success:
-            print("\n\n\tFound solution in %.3f seconds.\n\n" % dur)
+            print("\tFound solution in %.1f ms.\n\n" % dur)
         elif verbose and not solution.success:
-            print("\n\n\tGiving up after %.3f seconds.\n" % dur)
+            print("\tGiving up after %.1f ms.\n" % dur)
         return solution
 
 
@@ -151,13 +165,13 @@ def _demo_logistic_regression_in_ill_posed_synthetic_case():
     wbig = np.random.normal(size=xbig.shape[1])
     y = np.sum(wbig * xbig, axis=1) > 0
 
-    solver = LogisticRegressionSolver(x, y, regweight=10.0)
+    solver = LogisticRegressionSolver(x, y, regweight=0.5)
     solution = solver.solve()
 
     print(solution)
 
-    logits = compute_logits(solution.x, x)
-    probs = compute_probs(solution.x, x)
+    logits = biasdot(solution.x, x)
+    probs = sigmoid(logits)
     yhats = logits >= 0
     accuracy = np.mean(yhats == y)
 
@@ -178,13 +192,13 @@ def _demo_logistic_regression_in_well_posed_synthetic_case():
     wbig = np.random.normal(size=xbig.shape[1])
     y = np.sum(wbig * xbig, axis=1) > 0
 
-    solver = LogisticRegressionSolver(x, y, regweight=10.0)
+    solver = LogisticRegressionSolver(x, y, regweight=0.5)
     solution = solver.solve()
 
     print(solution)
 
-    logits = compute_logits(solution.x, x)
-    probs = compute_probs(solution.x, x)
+    logits = biasdot(solution.x, x)
+    probs = sigmoid(logits)
     yhats = logits >= 0
     accuracy = np.mean(yhats == y)
 
@@ -210,12 +224,13 @@ def _demo_logistic_sensitivity_in_synthetic_case():
 
     print(solution)
 
-    logits = compute_logits(solution.x, x)
+    logits = biasdot(solution.x, x)
     yhats = logits >= 0
     accuracy = np.mean(yhats == y)
 
     xspan = np.linspace(-6, +6, 1000)[:, None]
-    pspan = compute_probs(solution.x, xspan)
+    logitspan = biasdot(solution.x, xspan)
+    pspan = sigmoid(logitspan)
     _, axes = plt.subplots(figsize=(12, 6))
     xflat = np.ravel(x)
     yflat = np.zeros_like(xflat) - 0.05
