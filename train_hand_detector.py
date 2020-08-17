@@ -20,6 +20,23 @@ BOUNDS = [
     ]
 
 
+def extract_forces():
+
+    insides = []
+    outsides = []
+
+    for name, (start, stop) in zip(NAMES, BOUNDS):
+        rec = Recording("data/ur10e_guiding/%s.csv" % name)
+        outsides.append(rec.force_xyz[:start])
+        insides.append(rec.force_xyz[start + 100:stop - 100])
+        outsides.append(rec.force_xyz[stop:])
+    
+    insides = np.concatenate(insides, axis=0)
+    outsides = np.concatenate(outsides, axis=0)
+
+    return insides, outsides
+
+
 def extract_data(width=20):
 
     insides = []
@@ -81,11 +98,13 @@ if __name__ == "__main__":
     width = 30
     snipoff = 6
     
-    positive, negative = extract_data(width)
+    # positive, negative = extract_data(width)
+    # posfeats = preprocess(positive[:, :, :snipoff])
+    # negfeats = preprocess(negative[:, :, :snipoff])
 
-    # add squares as features:
-    posfeats = preprocess(positive[:, :, :snipoff])
-    negfeats = preprocess(negative[:, :, :snipoff])
+    positive, negative = extract_forces()
+    posfeats = preprocess(positive)
+    negfeats = preprocess(negative)
 
     x = np.concatenate([posfeats, negfeats], axis=0)
     y = np.array(len(posfeats) * [True] + len(negfeats) * [False])
@@ -102,6 +121,10 @@ if __name__ == "__main__":
     solver = logistic.LogisticRegressionSolver(train_x, train_y, regweight=0.0)
     solution = solver.solve()
 
+    print("Parameter estimate:")
+    print(solution.x)
+    print()
+
     print("Training set accuracy:")
     print(logistic.compute_accuracy(solution.x, train_x, train_y))
     print(logistic.compute_logistic_loss(solution.x, train_x, train_y))
@@ -112,15 +135,22 @@ if __name__ == "__main__":
     print()
 
     rec = Recording("data/ur10e_guiding/%s.csv" % NAMES[0])
-    freqs = compute_windowed_fourier(rec.force_xyz, width=width)
-    data = preprocess(freqs[:, :, :snipoff])
-    probs = logistic.compute_probs(solution.x, data)
+    # freqs = compute_windowed_fourier(rec.force_xyz, width=width)
+    # data = preprocess(freqs[:, :, :snipoff])
+    data = preprocess(rec.force_xyz)
+    probs = logistic.compute_logits(solution.x, data)
 
-    figure, axlist = plt.subplots(figsize=(12, 8), nrows=4, sharex=True)
-    for i, axes in enumerate(axlist[:3]):
-        powers = freqs[:, :, 0].T ** 2
-        powers /= powers.max(axis=0)
-        axes.imshow(powers, aspect="auto")
-    axlist[-1].plot(probs, ".-")
+    figure, (top, bot) = plt.subplots(figsize=(12, 8), nrows=2, sharex=True)
+    top.plot(rec.force_xyz, ".-", alpha=0.5)
+    bot.plot(probs, ".-", lw=3)
     plt.tight_layout()
     plt.show()
+
+    # figure, axlist = plt.subplots(figsize=(12, 8), nrows=4, sharex=True)
+    # for i, axes in enumerate(axlist[:3]):
+    #     powers = freqs[:, :, 0].T ** 2
+    #     powers /= powers.max(axis=0)
+    #     axes.imshow(powers, aspect="auto")
+    # axlist[-1].plot(probs, ".-")
+    # plt.tight_layout()
+    # plt.show()
