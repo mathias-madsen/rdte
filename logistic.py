@@ -13,6 +13,15 @@ def compute_logits(theta, x):
     return theta[..., 0] + np.sum(x * theta[..., 1:], axis=-1)
 
 
+def differentiate_logits_wrt_theta(theta, x):
+    """ Compute the gradient of the logits with respect to `theta`. """
+    shape = list(np.shape(x))
+    shape[-1] += 1
+    grad = np.ones(shape, dtype=x.dtype)
+    grad[..., 1:] = x
+    return grad
+
+
 def sigmoid(z, maxexp=200):
     """ Compute the inverse of `scipy.special.logit`. """
     halfz = np.clip(z / 2, -abs(maxexp), +abs(maxexp))
@@ -85,21 +94,21 @@ class LogisticRegressionSolver:
         assert self.regweight >= 0.0
         self.num_params = 1 + self.dim
 
-    # def jac(self, theta):
-    #     bias, weights = unpack(theta)
-    #     model = PolynomialLogisticModel(bias, weights)
-    #     bias_grads, weights_grads = model.gradient(self.x)
-    #     flat_grads = pack(bias_grads, weights_grads)
-    #     assert flat_grads.shape == (self.num_points, self.num_params)
-    #     # True ==> bad if very negative
-    #     # False ==> bad if very positive
-    #     flat_grads[self.y] *= -1
-    #     meangrad = np.mean(flat_grads, axis=0)
-    #     reggrad = 2.0 * theta
-    #     reggrad *= self.regweight / self.num_points
-    #     assert meangrad.shape == reggrad.shape == (self.num_params,)
-    #     grad = meangrad * reggrad
-    #     return grad
+    def jac(self, theta):
+        dlogodds = differentiate_logits_wrt_theta(theta, self.x)
+        dlogodds[self.y] *= -1
+        meangrad = np.mean(dlogodds, axis=0)
+        reggrad = 2.0 * theta
+        reggrad *= self.regweight / self.num_points
+        assert meangrad.shape == reggrad.shape == (self.num_params,)
+        return meangrad + reggrad
+    
+    def hess(self, theta):
+        unweighted = 2.0 * np.eye(self.num_params)
+        return self.regweight / self.num_points * unweighted
+
+    def hessp(self, theta, vector):
+        return 2.0 * self.regweight / self.num_points * vector
 
     def compute_loss(self, theta):
         logistic_loss = compute_logistic_loss(theta, self.x, self.y)
@@ -113,8 +122,21 @@ class LogisticRegressionSolver:
     def solve(self, verbose=True):
         start = time.time()
         theta = 1e-5 * np.random.normal(size=self.num_params)
-        solution = minimize(self.compute_loss, theta)
-        # solution = minimize(self.compute_loss, theta, method="newton-cg", jac=self.jac)
+        # solution = minimize(self.compute_loss, theta)
+        # def jac(theta):
+        #     dlogodds = differentiate_logits_wrt_theta(theta, self.x)
+        #     dlogodds[self.y] *= -1
+        #     return np.mean(dlogodds, axis=0)
+        # def hess(theta):
+        #     return np.zeros([theta.size, theta.size])
+        # def hessp(theta):
+        #     return np.zeros(theta.size)
+        solution = minimize(self.compute_loss,
+                            theta,
+                            method="newton-cg",
+                            jac=self.jac,
+                            hess=self.hess,
+                            hessp=self.hessp)
         dur = time.time() - start
         if verbose and solution.success:
             print("\n\n\tFound solution in %.3f seconds.\n\n" % dur)
@@ -123,11 +145,38 @@ class LogisticRegressionSolver:
         return solution
 
 
-def _demo_logistic_regression_in_synthetic_case():
+def _demo_logistic_regression_in_ill_posed_synthetic_case():
 
     x = np.random.uniform(-5, +5, size=(2000, 2))
     xbig = np.concatenate([x ** 0, x ** 1, x ** 2], axis=1)
-    wbig = np.random.normal(size=(x.shape[1] * 3))
+    wbig = np.random.normal(size=xbig.shape[1])
+    y = np.sum(wbig * xbig, axis=1) > 0
+
+    solver = LogisticRegressionSolver(x, y, regweight=10.0)
+    solution = solver.solve()
+
+    print(solution)
+
+    logits = compute_logits(solution.x, x)
+    probs = compute_probs(solution.x, x)
+    yhats = logits >= 0
+    accuracy = np.mean(yhats == y)
+
+    _, (left, right) = plt.subplots(figsize=(12, 6), ncols=2)
+    true_colors = ["g" if yt else "r" for yt in y]
+    left.scatter(*x.T, color=true_colors)
+    left.set_title("num pos: %s; num neg: %s" % (sum(y), sum(~y)))
+    fake_colors = probs[:, None]*GREEN + (1 - probs[:, None])*RED
+    right.scatter(*x.T, color=fake_colors)
+    right.set_title("Accuracy: %.1f pct" % (100. * accuracy))
+    plt.show()
+
+
+def _demo_logistic_regression_in_well_posed_synthetic_case():
+
+    x = np.random.uniform(-5, +5, size=(2000, 2))
+    xbig = x
+    wbig = np.random.normal(size=xbig.shape[1])
     y = np.sum(wbig * xbig, axis=1) > 0
 
     solver = LogisticRegressionSolver(x, y, regweight=10.0)
@@ -192,5 +241,6 @@ def _demo_logistic_sensitivity_in_synthetic_case():
 
 if __name__ == "__main__":
 
-    _demo_logistic_regression_in_synthetic_case()
+    _demo_logistic_regression_in_well_posed_synthetic_case()
+    _demo_logistic_regression_in_ill_posed_synthetic_case()
     # _demo_logistic_sensitivity_in_synthetic_case()
