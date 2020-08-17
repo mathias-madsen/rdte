@@ -123,14 +123,6 @@ class LogisticRegressionSolver:
         start = time.time()
         theta = 1e-5 * np.random.normal(size=self.num_params)
         # solution = minimize(self.compute_loss, theta)
-        # def jac(theta):
-        #     dlogodds = differentiate_logits_wrt_theta(theta, self.x)
-        #     dlogodds[self.y] *= -1
-        #     return np.mean(dlogodds, axis=0)
-        # def hess(theta):
-        #     return np.zeros([theta.size, theta.size])
-        # def hessp(theta):
-        #     return np.zeros(theta.size)
         solution = minimize(self.compute_loss,
                             theta,
                             method="newton-cg",
