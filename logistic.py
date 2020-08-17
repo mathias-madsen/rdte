@@ -42,6 +42,13 @@ def compute_logistic_loss(theta, x, y):
     return np.mean(logits, axis=0)
 
 
+def compute_accuracy(theta, x, y):
+    """ Compute proportion of correctly categorized data points. """
+    logits = compute_logits(theta, x)
+    yhats = logits >= 0
+    return np.mean(yhats == y)
+
+
 # class PolynomialLogisticModel:
 
 #     def __init__(self, bias=0.0, weights=0.0):
