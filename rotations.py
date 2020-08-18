@@ -42,7 +42,7 @@ def matrix2euler(matrix):
 
     Based on https://github.com/scipy/scipy/blob/v1.5.2/scipy/spatial/
     transform/rotation.py#L18-L140, which in turn in based on "General
-    Formula for Extractingthe Euler Angles" (Shuster and Markley, 2006).
+    Formula for Extracting the Euler Angles" (Shuster and Markley, 2006).
     """
 
     if matrix.ndim == 2:
