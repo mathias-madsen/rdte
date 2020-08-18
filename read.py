@@ -54,11 +54,14 @@ class Recording:
         self.force = extract_tcp_forces(self.data)
         self.force_xyz, self.force_rvec = np.split(self.force, 2, axis=1)
         self.force_rmats = rotations.rvecs2matrices(self.force_rvec)
+        self.force_euler = rotations.matrix2euler(self.force_rmats)
 
         self.pose = extract_tcp_poses(self.data)
         self.pose_xyz, self.pose_rvec = np.split(self.pose, 2, axis=1)
         self.pose_rmats = rotations.rvecs2matrices(self.pose_rvec)
+        self.pose_euler = rotations.matrix2euler(self.pose_rmats)
 
         self.speed = extract_tcp_speed(self.data)
         self.speed_xyz, self.speed_rvec = np.split(self.speed, 2, axis=1)
         self.speed_rmats = rotations.rvecs2matrices(self.speed_rvec)
+        self.speed_euler = rotations.matrix2euler(self.speed_rmats)
