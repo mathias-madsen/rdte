@@ -34,9 +34,15 @@ for filename in filenames:
     filepath = "data/runedata/%s" % filename
     rec = Recording(filepath)
 
-    dz = get_radians(rec.pose_rmats)
-    dz = (dz + 2*np.pi) % (2*np.pi)
-    fx, fy, fz = rec.force_xyz.T
+    # dz = get_radians(rec.pose_rmats)
+    # dz = (dz + 2*np.pi) % (2*np.pi)
+
+    dz = rec.joint_radians[:, -1]
+
+    fxyz = rec.force_xyz
+    # fxyz = np.squeeze(rec.pose_rmats.transpose([0, 2, 1]) @ fxyz[:, :, None])
+    fxyz = np.squeeze(rec.pose_rmats.transpose([0, 1, 2]) @ fxyz[:, :, None])
+    fx, fy, fz = fxyz.T
 
     figure, axlist = plt.subplots(figsize=(12, 8), nrows=3, sharex=True)
     axlist[0].plot(dz, fx, "r.", alpha=0.5)
@@ -44,7 +50,7 @@ for filename in filenames:
     axlist[2].plot(dz, fz, "b.", alpha=0.5)
     axlist[0].set_ylabel("force x")
     axlist[1].set_ylabel("force y")
-    axlist[2].set_ylabel("force x")
+    axlist[2].set_ylabel("force z")
     axlist[2].set_xlabel("Angle of rotation around z (radians)")
     plt.suptitle(filename)
     plt.tight_layout()
@@ -58,7 +64,7 @@ for filename in filenames:
     axlist[3].plot(dz, "k.", alpha=0.5)
     axlist[0].set_ylabel("force x")
     axlist[1].set_ylabel("force y")
-    axlist[2].set_ylabel("force x")
+    axlist[2].set_ylabel("force z")
     axlist[3].set_ylabel("Angle (degrees)")
     axlist[3].set_xlabel("Time step (1/125s)")
     plt.suptitle(filename)

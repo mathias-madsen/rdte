@@ -65,3 +65,5 @@ class Recording:
         self.speed_xyz, self.speed_rvec = np.split(self.speed, 2, axis=1)
         self.speed_rmats = rotations.rvecs2matrices(self.speed_rvec)
         self.speed_euler = rotations.matrix2euler(self.speed_rmats)
+
+        self.joint_radians = np.transpose([self.data['actual_q_%s' % i] for i in range(6)])
