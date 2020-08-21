@@ -44,6 +44,16 @@ def extract_tcp_speed(data):
     return np.stack(columns, axis=1)
 
 
+def extract_joint_angles(data):
+    """ Extract the shape-(N, 6) array of joint angles in radians. """
+
+    names = ["actual_q_%s" % i for i in range(6)]
+    columns = [data[name] for name in names]
+
+    return np.stack(columns, axis=1)
+
+
+
 class Recording:
 
     def __init__(self, csvpath):
@@ -66,4 +76,4 @@ class Recording:
         self.speed_rmats = rotations.rvecs2matrices(self.speed_rvec)
         self.speed_euler = rotations.matrix2euler(self.speed_rmats)
 
-        self.joint_radians = np.transpose([self.data['actual_q_%s' % i] for i in range(6)])
+        self.joint_radians = extract_joint_angles(self.data)
