@@ -64,3 +64,42 @@ def compute_windowed_fourier(arr, width=20):
     """
 
     return rfft(get_windows(arr, width), axis=1)
+
+
+def real_slow_fourier_transform(series):
+    """ For testing, compute the `scipy.fftpack.rfft` explicitly. """
+
+    period = 2 * np.pi * np.arange(len(series)) / len(series)
+    freqs = np.zeros_like(series)
+    freqs[0] = np.sum(series)
+
+    for k, _ in enumerate(series[1::2]):
+        wave = np.cos((k + 1) * period)
+        freqs[1 + 2*k] = np.dot(wave, series)
+
+    for k, _ in enumerate(series[2::2]):
+        wave = -np.sin((k + 1) * period)
+        freqs[2 + 2*k] = np.dot(wave, series)
+
+    return freqs
+
+
+def unevenly_spaced_discrete_real_fourier_series(x, y, num_freqs=None):
+    """ Decompose a function into periodic signals.
+
+    Coincides with Discrete, real-valued Fourier analysis when `x`
+    is evenly spaced on [0, 2*pi).
+    """
+
+    assert x.shape == y.shape
+    assert x.ndim == y.ndim == 1
+
+    width = len(x)
+    height = len(x) if num_freqs is None else num_freqs
+    waves = np.ones([height, width], dtype=x.dtype)
+    for k, _ in enumerate(waves[1::2, :]):
+        waves[1 + 2*k] = np.cos((k + 1) * x)
+    for k, _ in enumerate(waves[2::2, :]):
+        waves[2 + 2*k] = -np.sin((k + 1) * x)
+    
+    return np.sum(waves * y, axis=1)
