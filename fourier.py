@@ -121,6 +121,8 @@ def one(k, n):
 def slow_irfft(freqs, x=None):
     """ Explicitly compute irfft, for testing purposes. """
 
+    freqs = np.float64(np.copy(freqs))
+
     assert np.ndim(freqs) == 1
     N = len(freqs)
     assert N > 2, ("Please provide 2 or more freqs, not %s" % N)
@@ -132,8 +134,10 @@ def slow_irfft(freqs, x=None):
     coscoeffs = freqs[1::2]
     cosfreqs = 1 + np.arange(len(coscoeffs))
     cost = 2.0 * np.cos(x[:, None] * cosfreqs)
+    assert cost.ndim == 2
+    assert cost.shape[1] == len(cosfreqs)
     if N % 2 == 0:
-        cost[:, -1] *= 0.5
+        coscoeffs[-1] *= 0.5
     cosine = np.sum(coscoeffs * cost, axis=1)
     cosine *= 1 / N
 
@@ -144,6 +148,57 @@ def slow_irfft(freqs, x=None):
     sine *= 1 / N
 
     return constant + cosine - sine
+
+
+class InverseFourierFunction:
+
+    def __init__(self, freqs):
+
+        assert np.ndim(freqs) == 1
+        assert len(freqs) > 2, ("Please provide 2 or more freqs, not %s" % N)
+
+        self.freqs = np.float64(np.copy(freqs))
+        self.N = len(self.freqs)
+        self.constant = self.freqs[0] / self.N
+
+        self.coscoeffs = self.freqs[1::2]
+        self.coscoeffs *= 2.0 / self.N
+        if self.N % 2 == 0:
+            self.coscoeffs[-1] *= 0.5
+        self.cosfreqs = 1 + np.arange(len(self.coscoeffs))
+
+        self.sincoeffs = self.freqs[2::2]
+        self.sincoeffs *= -2 / self.N
+        self.sinfreqs = 1 + np.arange(len(self.sincoeffs))
+    
+    def __call__(self, x):
+
+        if np.isscalar(x):
+            x = np.atleast_1d(x)
+
+        assert np.ndim(x) == 1
+
+        cos_waves = np.cos(x[:, None] * self.cosfreqs)
+        cos = np.sum(self.coscoeffs * cos_waves, axis=1)
+
+        sin_waves = np.sin(x[:, None] * self.sinfreqs)
+        sin = np.sum(self.sincoeffs * sin_waves, axis=1)
+
+        return self.constant + cos + sin
+    
+    def export_as_code(self):
+
+        terms = ["%.5g" % self.constant]
+
+        for coeff, freq in zip(self.coscoeffs, self.cosfreqs):
+            if abs(coeff) > 1e-5:
+                terms.append("%.5g*np.cos(%.5g*x)" % (coeff, freq))
+
+        for coeff, freq in zip(self.sincoeffs, self.sinfreqs):
+            if abs(coeff) > 1e-5:
+                terms.append("%.5g*np.sin(%.5g*x)" % (coeff, freq))
+        
+        return " + ".join(terms)
 
 
 def _test_slow_irfft_constants():
@@ -261,6 +316,20 @@ def _test_slow_irfft_with_random_inputs():
         assert np.allclose(theirs, ours, atol=1e-5)
 
 
+def _test_inverse_dft_function():
+
+    for N in range(3, 15):
+        freqs = np.random.normal(size=N)
+        default_x = 2 * np.pi * np.arange(N) / N
+        other_x = np.random.uniform(0, 2 * np.pi, size=N)
+        inverse = InverseFourierFunction(freqs)
+        assert np.allclose(inverse(default_x), irfft(freqs))
+        assert np.allclose(inverse(default_x), slow_irfft(freqs))
+        assert np.allclose(inverse(other_x), slow_irfft(freqs, x=other_x))
+        print(inverse.export_as_code())
+        print()
+
+
 def demo_slow_irfft():
 
     from matplotlib import pyplot as plt
@@ -294,5 +363,6 @@ if __name__ == "__main__":
     _test_slow_irfft_second_cosine()
     _test_slow_irfft_one_onehot_vectors()
     _test_slow_irfft_with_random_inputs()
+    _test_inverse_dft_function()
 
     print("Fourier module passed all tests.\n")
