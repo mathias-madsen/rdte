@@ -141,7 +141,7 @@ class LogisticRegressionSolver:
         start = time.time()
         theta = 1e-5 * np.random.normal(size=self.num_params)
         if verbose:
-            print("\n\n\Solving logistic regression problem . . .")
+            print("\n\nSolving logistic regression problem . . .")
         # solution = minimize(self.compute_loss, theta)
         solution = minimize(self.compute_loss,
                             theta,
