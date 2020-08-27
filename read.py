@@ -1,3 +1,4 @@
+import time
 import numpy as np
 
 import rotations
@@ -58,8 +59,14 @@ class Recording:
 
     def __init__(self, csvpath):
 
+        start = time.perf_counter()
+        print("Reading record at %r . . ." % csvpath)
+
         with open(csvpath, "r") as source:
             self.data = text2dict(source.read())
+
+        dur = time.perf_counter() - start
+        print("Done after %.3f seconds.\n" % dur)
 
         self.force = extract_tcp_forces(self.data)
         self.force_xyz, self.force_rvec = np.split(self.force, 2, axis=1)
@@ -77,3 +84,35 @@ class Recording:
         self.speed_euler = rotations.matrix2euler(self.speed_rmats)
 
         self.joint_radians = extract_joint_angles(self.data)
+    
+    def purge_dynamic(self, epsilon=0.001, verbose=True):
+        """ Remove all time steps in which the robot was moving. """
+
+        speed_xyz = np.linalg.norm(self.speed_xyz, axis=1)
+        speed_rvec = np.linalg.norm(self.speed_rvec, axis=1)
+
+        still = speed_xyz + speed_rvec < epsilon
+
+        self.force = self.force[still, :]
+        self.force_xyz = self.force_xyz[still, :]
+        self.force_rvec = self.force_rvec[still, :]
+        self.force_rmats = self.force_rmats[still, :]
+        self.force_euler = self.force_euler[still, :]
+
+        self.pose = self.pose[still, :]
+        self.pose_xyz = self.pose_xyz[still, :]
+        self.pose_rvec = self.pose_rvec[still, :]
+        self.pose_rmats = self.pose_rmats[still, :]
+        self.pose_euler = self.pose_euler[still, :]
+
+        self.speed = self.speed[still, :]
+        self.speed_xyz = self.speed_xyz[still, :]
+        self.speed_rvec = self.speed_rvec[still, :]
+        self.speed_rmats = self.speed_rmats[still, :]
+        self.speed_euler = self.speed_euler[still, :]
+
+        self.joint_radians = self.joint_radians[still, :]
+
+        print("Removed %s / %s frames.\n" % (sum(~still), len(still)))
+
+        return self
