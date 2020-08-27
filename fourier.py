@@ -109,3 +109,192 @@ def unevenly_spaced_discrete_real_fourier_series(x, y, num_freqs=None):
     long_freqs[:num_freqs] = short_freqs
 
     return long_freqs
+
+
+
+def one(k, n):
+    a = np.zeros(n)
+    a[k] = 1
+    return a
+
+
+def slow_irfft(freqs, x=None):
+    """ Explicitly compute irfft, for testing purposes. """
+
+    assert np.ndim(freqs) == 1
+    N = len(freqs)
+    assert N > 2, ("Please provide 2 or more freqs, not %s" % N)
+    constant = freqs[0] / len(freqs)
+
+    if x is None:
+        x = 2 * np.pi * np.arange(N) / N
+
+    coscoeffs = freqs[1::2]
+    cosfreqs = 1 + np.arange(len(coscoeffs))
+    cost = 2.0 * np.cos(x[:, None] * cosfreqs)
+    if N % 2 == 0:
+        cost[:, -1] *= 0.5
+    cosine = np.sum(coscoeffs * cost, axis=1)
+    cosine *= 1 / N
+
+    sinecoeffs = freqs[2::2]
+    sinfreqs = 1 + np.arange(len(sinecoeffs))
+    sint = 2.0 * np.sin(x[:, None] * sinfreqs)
+    sine = np.sum(sinecoeffs * sint, axis=1)
+    sine *= 1 / N
+
+    # print("shapes:")
+    # print(np.shape(freqs))
+    # print(cost.shape)
+    # print(sint.shape)
+    # print()
+
+    return constant + cosine - sine
+
+
+def _test_slow_irfft_constants():
+
+    assert np.allclose(irfft([1]), [1/1])
+    assert np.allclose(irfft([1, 0]), [1/2, 1/2])
+    assert np.allclose(irfft([1, 0, 0]), [1/3, 1/3, 1/3])
+    assert np.allclose(irfft([1, 0, 0, 0]), [1/4, 1/4, 1/4, 1/4])
+    assert np.allclose(irfft([1, 0, 0, 0, 0]), [1/5, 1/5, 1/5, 1/5, 1/5])
+
+    # assert np.allclose(slow_irfft([1]), [1/1])
+    # assert np.allclose(slow_irfft([1, 0]), [1/2, 1/2])
+    assert np.allclose(slow_irfft([1, 0, 0]), [1/3, 1/3, 1/3])
+    assert np.allclose(slow_irfft([1, 0, 0, 0]), [1/4, 1/4, 1/4, 1/4])
+    assert np.allclose(slow_irfft([1, 0, 0, 0, 0]), [1/5, 1/5, 1/5, 1/5, 1/5])
+
+
+def _test_slow_irfft_additivity():
+
+    for k in range(10):
+        freqs = np.random.normal(size=k + 3)
+        simultaneously = irfft(freqs)
+        piecewise = np.sum([irfft(f) for f in np.diag(freqs)], axis=0)
+        assert np.allclose(simultaneously, piecewise)
+
+    for k in range(10):
+        freqs = np.random.normal(size=k + 3)
+        simultaneously = slow_irfft(freqs)
+        piecewise = np.sum([slow_irfft(f) for f in np.diag(freqs)], axis=0)
+        assert np.allclose(simultaneously, piecewise)
+
+
+def _test_slow_irfft_first_cosine():
+
+    tau = 2 * np.pi
+    wave = lambda k: 2/k * np.cos(1 * tau * np.arange(k) / k)
+
+    assert np.allclose(irfft([0, 1, 0]), wave(3))
+    assert np.allclose(irfft([0, 1, 0, 0]), wave(4))
+    assert np.allclose(irfft([0, 1, 0, 0, 0]), wave(5))
+    assert np.allclose(irfft([0, 1, 0, 0, 0, 0]), wave(6))
+
+    assert np.allclose(slow_irfft([0, 1, 0]), wave(3))
+    assert np.allclose(slow_irfft([0, 1, 0, 0]), wave(4))
+    assert np.allclose(slow_irfft([0, 1, 0, 0, 0]), wave(5))
+    assert np.allclose(slow_irfft([0, 1, 0, 0, 0, 0]), wave(6))
+
+
+def _test_slow_irfft_first_sine():
+
+    tau = 2 * np.pi
+    wave = lambda k: -2/k * np.sin(1 * tau * np.arange(k) / k)
+
+    assert np.allclose(irfft([0, 0, 1]), wave(3))
+    assert np.allclose(irfft([0, 0, 1, 0]), wave(4))
+    assert np.allclose(irfft([0, 0, 1, 0, 0]), wave(5))
+    assert np.allclose(irfft([0, 0, 1, 0, 0, 0]), wave(6))
+
+    assert np.allclose(slow_irfft([0, 0, 1]), wave(3))
+    assert np.allclose(slow_irfft([0, 0, 1, 0]), wave(4))
+    assert np.allclose(slow_irfft([0, 0, 1, 0, 0]), wave(5))
+    assert np.allclose(slow_irfft([0, 0, 1, 0, 0, 0]), wave(6))
+
+
+def _test_slow_irfft_second_cosine():
+
+    tau = 2 * np.pi
+    wave = lambda k: 2/k * np.cos(2 * tau * np.arange(k) / k)
+
+    assert np.allclose(irfft([0, 0, 0, 1, 0]), wave(5))
+    assert np.allclose(irfft([0, 0, 0, 1, 0, 0]), wave(6))
+    assert np.allclose(irfft([0, 0, 0, 1, 0, 0, 0]), wave(7))
+    assert np.allclose(irfft([0, 0, 0, 1, 0, 0, 0, 0]), wave(8))
+
+    assert np.allclose(slow_irfft([0, 0, 0, 1, 0]), wave(5))
+    assert np.allclose(slow_irfft([0, 0, 0, 1, 0, 0]), wave(6))
+    assert np.allclose(slow_irfft([0, 0, 0, 1, 0, 0, 0]), wave(7))
+    assert np.allclose(slow_irfft([0, 0, 0, 1, 0, 0, 0, 0]), wave(8))
+
+    # special case when it's the last, and N is even:
+    assert np.allclose(irfft([0, 0, 0, 1]), 0.5 * wave(4))
+    assert np.allclose(slow_irfft([0, 0, 0, 1]), 0.5 * wave(4))
+
+
+def _test_slow_irfft_one_onehot_vectors():
+
+    for n in range(3, 10):
+        for k in range(n):
+            freqs = one(k, n)
+            theirs = irfft(freqs)
+            ours = slow_irfft(freqs)
+            assert np.allclose(theirs, ours)
+
+
+def _test_slow_irfft_with_random_inputs():
+
+    for freqs in np.random.normal(size=(10, 4)):
+        theirs = irfft(freqs)
+        ours = slow_irfft(freqs)
+        assert np.allclose(theirs, ours, atol=1e-5)
+
+    for freqs in np.random.normal(size=(10, 5)):
+        theirs = irfft(freqs)
+        ours = slow_irfft(freqs)
+        assert np.allclose(theirs, ours, atol=1e-5)
+
+    for freqs in np.random.normal(size=(10, 50)):
+        theirs = irfft(freqs)
+        ours = slow_irfft(freqs)
+        assert np.allclose(theirs, ours, atol=1e-5)
+
+    for freqs in np.random.normal(size=(10, 51)):
+        theirs = irfft(freqs)
+        ours = slow_irfft(freqs)
+        assert np.allclose(theirs, ours, atol=1e-5)
+
+
+if __name__ == "__main__":
+
+    _test_slow_irfft_constants()
+    _test_slow_irfft_additivity()
+    _test_slow_irfft_first_cosine()
+    _test_slow_irfft_first_sine()
+    _test_slow_irfft_second_cosine()
+    _test_slow_irfft_one_onehot_vectors()
+    _test_slow_irfft_with_random_inputs()
+
+
+    from matplotlib import pyplot as plt
+
+    x = 2 * np.pi * np.arange(100) / 100
+    y = np.cumsum(np.random.normal(size=100))
+
+    print("Lowpass")
+    freqs = rfft(y)
+    freqs[20:] *= 0
+    yhat = irfft(freqs)
+    print("Done.\n")
+
+    print("Eval")    
+    xthin = 2 * np.pi * np.arange(30) / 30
+    ythin = slow_irfft(freqs, xthin)
+    print("Done.\n")    
+
+    plt.plot(x, y, ".")
+    plt.plot(x, yhat, "-", alpha=0.3)
+    plt.plot(xthin, ythin, "-", alpha=0.3)
+    plt.show()
