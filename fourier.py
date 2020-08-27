@@ -96,10 +96,16 @@ def unevenly_spaced_discrete_real_fourier_series(x, y, num_freqs=None):
 
     width = len(x)
     height = len(x) if num_freqs is None else num_freqs
+
     waves = np.ones([height, width], dtype=x.dtype)
     for k, _ in enumerate(waves[1::2, :]):
         waves[1 + 2*k] = np.cos((k + 1) * x)
     for k, _ in enumerate(waves[2::2, :]):
         waves[2 + 2*k] = -np.sin((k + 1) * x)
-    
-    return np.sum(waves * y, axis=1)
+
+    short_freqs = np.sum(waves * y, axis=1)
+
+    long_freqs = np.zeros(len(x))
+    long_freqs[:num_freqs] = short_freqs
+
+    return long_freqs
