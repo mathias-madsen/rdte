@@ -143,12 +143,6 @@ def slow_irfft(freqs, x=None):
     sine = np.sum(sinecoeffs * sint, axis=1)
     sine *= 1 / N
 
-    # print("shapes:")
-    # print(np.shape(freqs))
-    # print(cost.shape)
-    # print(sint.shape)
-    # print()
-
     return constant + cosine - sine
 
 
@@ -267,16 +261,7 @@ def _test_slow_irfft_with_random_inputs():
         assert np.allclose(theirs, ours, atol=1e-5)
 
 
-if __name__ == "__main__":
-
-    _test_slow_irfft_constants()
-    _test_slow_irfft_additivity()
-    _test_slow_irfft_first_cosine()
-    _test_slow_irfft_first_sine()
-    _test_slow_irfft_second_cosine()
-    _test_slow_irfft_one_onehot_vectors()
-    _test_slow_irfft_with_random_inputs()
-
+def demo_slow_irfft():
 
     from matplotlib import pyplot as plt
 
@@ -298,3 +283,16 @@ if __name__ == "__main__":
     plt.plot(x, yhat, "-", alpha=0.3)
     plt.plot(xthin, ythin, "-", alpha=0.3)
     plt.show()
+
+
+if __name__ == "__main__":
+
+    _test_slow_irfft_constants()
+    _test_slow_irfft_additivity()
+    _test_slow_irfft_first_cosine()
+    _test_slow_irfft_first_sine()
+    _test_slow_irfft_second_cosine()
+    _test_slow_irfft_one_onehot_vectors()
+    _test_slow_irfft_with_random_inputs()
+
+    print("Fourier module passed all tests.\n")
