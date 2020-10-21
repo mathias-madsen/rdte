@@ -36,15 +36,6 @@ def extract_tcp_forces(data):
     return np.stack(columns, axis=1)
 
 
-def extract_wrench_forces(data):
-    """ Extract the shape-(N, 6) array of raw wrench forces. """
-
-    names = ["ft_raw_wrench_%s" % i for i in range(6)]
-    columns = [data[name] for name in names]
-
-    return np.stack(columns, axis=1)
-
-
 def extract_raw_forces(data):
     """ Extract the shape-(N, 6) array of raw wrench forces. """
 
@@ -86,8 +77,6 @@ class Recording:
         dur = time.perf_counter() - start
         print("Done after %.3f seconds.\n" % dur)
 
-        self.wrench = extract_raw_forces(self.data)
-
         self.force = extract_tcp_forces(self.data)
         self.force_xyz, self.force_rvec = np.split(self.force, 2, axis=1)
         self.force_rmats = rotations.rvecs2matrices(self.force_rvec)
@@ -123,6 +112,12 @@ class Recording:
         self.force_rvec = self.force_rvec[still, :]
         self.force_rmats = self.force_rmats[still, :]
         self.force_euler = self.force_euler[still, :]
+
+        self.raw_force = self.raw_force[still, :]
+        self.raw_force_xyz = self.raw_force_xyz[still, :]
+        self.raw_force_rvec = self.raw_force_rvec[still, :]
+        self.raw_force_rmats = self.raw_force_rmats[still, :]
+        self.raw_force_euler = self.raw_force_euler[still, :]
 
         self.pose = self.pose[still, :]
         self.pose_xyz = self.pose_xyz[still, :]
