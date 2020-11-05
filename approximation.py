@@ -19,7 +19,7 @@ def resample(old_x, old_y, new_x, bandwidth=None):
         When `bandwidth ~= 0`, this method behaves approximately like
         nearest-neighbor interpolation. When `bandwidth --> inf`, it
         behaves approximately like a constant-baseline prediction. The
-        unit of the bandwidth is `1 / u^2`, where `u` is the unit of `x`.
+        unit of the bandwidth is same as the unit of `x`.
 
     Returns:
     --------
@@ -29,10 +29,14 @@ def resample(old_x, old_y, new_x, bandwidth=None):
     """
 
     if bandwidth is None:
-        bandwidth = 1 / np.mean(np.diff(np.sort(old_y)) ** 2)
+        bandwidth = np.mean(np.diff(np.sort(old_y)) ** 2) ** 0.5
+
+    assert len(old_x) == len(old_y)
+    assert old_x.ndim == 1
+    assert new_x.ndim == 1
 
     old_x_2d, new_x_2d = np.meshgrid(old_x, new_x)
-    deviations = bandwidth * (old_x_2d - new_x_2d) ** 2
+    deviations = 0.5 * ((old_x_2d - new_x_2d) / bandwidth) ** 2
     deviations -= np.min(deviations, axis=1, keepdims=True)
     weights = np.exp(-deviations)
     weights /= weights.sum(axis=1, keepdims=True)
@@ -51,7 +55,7 @@ def find_good_bandwidth(x, y, resolution=40, logfactor=10):
     """ Use cross-validation to select a promising bandwidth. """
 
     # first compute a decent suggestion in a deterministic fashion:
-    suggested = 1. / np.mean(np.diff(np.sort(x)) ** 2)
+    suggested = np.mean(np.diff(np.sort(x)) ** 2) ** 0.5
 
     # then collect a series of variants of that suggestion::
     scalings = np.logspace(-logfactor, +logfactor, resolution)
