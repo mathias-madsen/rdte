@@ -150,12 +150,47 @@ def slow_irfft(freqs, x=None):
     return constant + cosine - sine
 
 
+def get_first_index_of_tail_of_zeros(series, atol=1e-5):
+    """ Get the point at which a series switches to all zeros.
+    
+    Notes:
+    ------
+    Returns the length of the series if it contains no zeros.
+
+    Examples:
+    ---------
+    >>> get_first_index_of_tail_of_zeros([1, 1, 1, 0, 0, 0, 0])
+    3
+    >>> get_first_index_of_tail_of_zeros([0, 0, 1, 0, 0, 0, 0])
+    3
+    >>> get_first_index_of_tail_of_zeros([1, 1, 1, 1, 1, 1, 0])
+    6
+    >>> get_first_index_of_tail_of_zeros([1, 1, 1, 1, 1, 1, 1])
+    7
+    """
+
+    assert np.ndim(series) == 1
+
+    is_zero = np.isclose(series, 0, atol=atol)
+
+    if not np.any(is_zero):
+        return len(series)
+
+    zeros_from_here = np.cumprod(is_zero[::-1], dtype=bool)[::-1]
+
+    # we rely on the fact that `np.argmax` returns the index of the
+    # _first_ occurrence of the maximum value in case there is more
+    # than one in the array. In this case, the maximum is `True`,
+    # so `np.argmax` returns the index of the first True element.
+    return np.argmax(zeros_from_here)
+
+
 class InverseFourierFunction:
 
     def __init__(self, freqs):
 
         assert np.ndim(freqs) == 1
-        assert len(freqs) > 2, ("Please provide 2 or more freqs, not %s" % N)
+        assert len(freqs) > 2, ("Need >2 or more freq, got %s" % len(freqs))
 
         self.freqs = np.float64(np.copy(freqs))
         self.N = len(self.freqs)
@@ -170,7 +205,16 @@ class InverseFourierFunction:
         self.sincoeffs = self.freqs[2::2]
         self.sincoeffs *= -2 / self.N
         self.sinfreqs = 1 + np.arange(len(self.sincoeffs))
-    
+
+        # slice off nearly-zero tails of the frequency table:
+        cos_truncation = get_first_index_of_tail_of_zeros(self.coscoeffs)
+        sin_truncation = get_first_index_of_tail_of_zeros(self.sincoeffs)
+        idx = max(cos_truncation, sin_truncation)        
+        self.coscoeffs = self.coscoeffs[:idx]
+        self.cosfreqs = self.cosfreqs[:idx]
+        self.sincoeffs = self.sincoeffs[:idx]
+        self.sinfreqs = self.sinfreqs[:idx]
+
     def __call__(self, x):
 
         if np.isscalar(x):
@@ -191,12 +235,10 @@ class InverseFourierFunction:
         terms = ["%.5g" % self.constant]
 
         for coeff, freq in zip(self.coscoeffs, self.cosfreqs):
-            if abs(coeff) > 1e-5:
-                terms.append("%.5g*np.cos(%.5g*x)" % (coeff, freq))
+            terms.append("%.5g*np.cos(%.5g*x)" % (coeff, freq))
 
         for coeff, freq in zip(self.sincoeffs, self.sinfreqs):
-            if abs(coeff) > 1e-5:
-                terms.append("%.5g*np.sin(%.5g*x)" % (coeff, freq))
+            terms.append("%.5g*np.sin(%.5g*x)" % (coeff, freq))
         
         return " + ".join(terms)
 
