@@ -159,6 +159,8 @@ class Recording:
 
         still = speed_xyz + speed_rvec < epsilon
 
+        self.temp = self.temp[still, :]
+
         self.force = self.force[still, :]
         self.force_xyz = self.force_xyz[still, :]
         self.force_rvec = self.force_rvec[still, :]
@@ -202,3 +204,19 @@ class Recording:
             return self.centered_raw_xyz
         else:
             raise ValueError("%r not in ['ACTUAL', 'RAW']" % force_type)
+    
+    def get_tcp_frame_xyz_force(self, force_type="ACTUAL"):
+        """ Extract either the actual or raw xyz forces. """
+
+        if "ACTUAL" in force_type.upper():
+            return self.force_xyz
+        elif "RAW" in force_type.upper():
+            rmats = self.pose_rmats
+            colvecs = self.centered_raw_xyz[:, :, None]
+            return np.squeeze(rmats @ colvecs, axis=2)
+        else:
+            raise ValueError("%r not in ['ACTUAL', 'RAW']" % force_type)
+    
+    def __repr__(self):
+
+        return "Recording(%r)" % self.path
