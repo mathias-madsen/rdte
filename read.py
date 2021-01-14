@@ -197,11 +197,11 @@ class Recording:
         """ Extract either the actual or raw xyz forces. """
 
         if "ACTUAL" in force_type.upper():
-            rmats = self.pose_rmats.transpose((0, 2, 1))
-            colvecs = self.force_xyz[:, :, None]
-            return np.squeeze(rmats @ colvecs, axis=2)
+            return self.force_xyz
         elif "RAW" in force_type.upper():
-            return self.centered_raw_xyz
+            rmats = self.pose_rmats
+            colvecs = self.centered_raw_xyz[:, :, None]
+            return np.squeeze(rmats @ colvecs, axis=2)
         else:
             raise ValueError("%r not in ['ACTUAL', 'RAW']" % force_type)
     
@@ -209,11 +209,11 @@ class Recording:
         """ Extract either the actual or raw xyz forces. """
 
         if "ACTUAL" in force_type.upper():
-            return self.force_xyz
-        elif "RAW" in force_type.upper():
-            rmats = self.pose_rmats
-            colvecs = self.centered_raw_xyz[:, :, None]
+            rmats = self.pose_rmats.transpose((0, 2, 1))
+            colvecs = self.force_xyz[:, :, None]
             return np.squeeze(rmats @ colvecs, axis=2)
+        elif "RAW" in force_type.upper():
+            return self.centered_raw_xyz
         else:
             raise ValueError("%r not in ['ACTUAL', 'RAW']" % force_type)
     
