@@ -7,15 +7,13 @@ import read
 import approximation
 
 
+NUMFREQS = 10
+DEGREE = 1
+
+
 def meanouter(x, y):
     outer = x[:, :, None] * y[:, None, :]
     return np.mean(outer, axis=0)
-
-
-def cov(x, y):
-    xbar = x - np.mean(x, axis=0)
-    ybar = y - np.mean(y, axis=0)
-    return meanouter(xbar, ybar)
 
 
 def get_waves(angles, frequencies):
@@ -44,9 +42,6 @@ def build_features(subset, degree):
     t = joint5temps[:, None]
     return np.concatenate([w * t**d for d in range(degree + 1)], axis=1)
 
-
-NUMFREQS = 10
-DEGREE = 1
 
 x1 = np.concatenate([build_features(subset, DEGREE)
                      for subset in data1], axis=0)
